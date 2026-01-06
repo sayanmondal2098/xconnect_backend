@@ -34,12 +34,17 @@ Open API docs:
 
 - PUT  `/api/integrations/github` (save token + validate)
 - GET  `/api/github/repos`
+- GET  `/api/github/repo?full_name=owner/repo`
 
 - PUT  `/api/integrations/servicenow` (save creds + validate)
 - GET  `/api/servicenow/tables`
+- GET  `/api/servicenow/{table}/fields`
+- POST `/api/servicenow/records` (create/update via `table`, `data`, optional `sys_id`)
 
 - POST `/api/mappings` (repo -> table)
 - GET  `/api/mappings`
+- POST `/api/mappings/validate` (check mapping against live GitHub + ServiceNow metadata)
+- POST `/api/mappings/auto` (heuristic/AI-ish auto-mapping suggestion)
 
 ## Notes
 - `SECRET_STORE=sqlite` requires `ENCRYPTION_KEY` (Fernet key).

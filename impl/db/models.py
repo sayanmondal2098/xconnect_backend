@@ -94,6 +94,8 @@ class Mapping(Base):
     github_repo_full_name = Column(String(300), nullable=False)
     servicenow_table = Column(String(200), nullable=False)
     label = Column(String(100), nullable=False, default="default")
+    direction = Column(String(30), nullable=False, default="bidirectional")  # github_to_servicenow | servicenow_to_github | bidirectional
+    field_mapping_json = Column(Text, nullable=False, default="{}")  # stored as JSON object
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     user = relationship("User", back_populates="mappings")

@@ -55,6 +55,16 @@ def init_db() -> None:
         "last_test_message",
         "last_test_message TEXT",
     )
+    _sqlite_add_column_if_missing(
+        "mappings",
+        "direction",
+        "direction VARCHAR(30) NOT NULL DEFAULT 'bidirectional'",
+    )
+    _sqlite_add_column_if_missing(
+        "mappings",
+        "field_mapping_json",
+        "field_mapping_json TEXT NOT NULL DEFAULT '{}'",
+    )
 
 
 def get_db():

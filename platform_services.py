@@ -6,8 +6,11 @@ from fastapi.security import OAuth2PasswordRequestForm
 from base_requests import (
     RegisterRequest, LoginRequest, TokenResponse, MeResponse, UpdateMeRequest, ChangePasswordRequest,
     GithubConnectRequest, GithubConnectResponse, GithubRepoListResponse,
+    GithubRepoDetailsResponse,
     ServiceNowConnectRequest, ServiceNowConnectResponse, ServiceNowTableListResponse,
+    ServiceNowFieldListResponse, ServiceNowRecordUpsertRequest, ServiceNowRecordResponse,
     CreateMappingRequest, MappingResponse, MappingListResponse,
+    MappingValidationRequest, MappingValidationResponse, AutoMappingRequest, AutoMappingResponse,
     IntegrationListResponse, DeleteResponse,
     UserSettingsResponse, UpdateUserSettingsRequest,
     HealthResponse,
@@ -97,6 +100,11 @@ def list_github_repos(label: str = "default", user=Depends(get_current_user)) ->
     return GithubService().list_repos(user_id=user.id, label=label)
 
 
+@router.get("/github/repo", response_model=GithubRepoDetailsResponse)
+def github_repo_details(full_name: str, label: str = "default", user=Depends(get_current_user)) -> GithubRepoDetailsResponse:
+    return GithubService().get_repo_details(user_id=user.id, full_name=full_name, label=label)
+
+
 # ---------- Integrations: ServiceNow ----------
 @router.put("/integrations/servicenow", response_model=ServiceNowConnectResponse)
 def connect_servicenow(req: ServiceNowConnectRequest, user=Depends(get_current_user)) -> ServiceNowConnectResponse:
@@ -113,6 +121,20 @@ def list_servicenow_tables(
     return ServiceNowService().list_tables(user_id=user.id, limit=limit, query=query, label=label)
 
 
+@router.get("/servicenow/{table}/fields", response_model=ServiceNowFieldListResponse)
+def list_servicenow_fields(
+    table: str,
+    label: str = "default",
+    user=Depends(get_current_user),
+) -> ServiceNowFieldListResponse:
+    return ServiceNowService().list_fields(user_id=user.id, table=table, label=label)
+
+
+@router.post("/servicenow/records", response_model=ServiceNowRecordResponse)
+def upsert_servicenow_record(req: ServiceNowRecordUpsertRequest, user=Depends(get_current_user)) -> ServiceNowRecordResponse:
+    return ServiceNowService().upsert_record(user_id=user.id, req=req)
+
+
 # ---------- Mappings ----------
 @router.post("/mappings", response_model=MappingResponse)
 def create_mapping(req: CreateMappingRequest, user=Depends(get_current_user)) -> MappingResponse:
@@ -122,3 +144,13 @@ def create_mapping(req: CreateMappingRequest, user=Depends(get_current_user)) ->
 @router.get("/mappings", response_model=MappingListResponse)
 def list_mappings(user=Depends(get_current_user)) -> MappingListResponse:
     return MappingService().list(user_id=user.id)
+
+
+@router.post("/mappings/validate", response_model=MappingValidationResponse)
+def validate_mapping(req: MappingValidationRequest, user=Depends(get_current_user)) -> MappingValidationResponse:
+    return MappingService().validate(user_id=user.id, req=req)
+
+
+@router.post("/mappings/auto", response_model=AutoMappingResponse)
+def auto_map(req: AutoMappingRequest, user=Depends(get_current_user)) -> AutoMappingResponse:
+    return MappingService().auto_map(user_id=user.id, req=req)

@@ -13,7 +13,8 @@ env/
 
 # Environment / secrets
 .env
-
+*.env.local
+.env.*.local    
 # Databases / local state
 *.db
 *.sqlite3

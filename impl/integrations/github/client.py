@@ -39,3 +39,10 @@ class GitHubClient:
             url = next_url
             params = None
         return repos
+
+    def get_repo(self, full_name: str) -> Dict[str, Any]:
+        full_name = full_name.strip().rstrip("/")
+        url = f"{self.base_url}/repos/{full_name}"
+        r = self.session.get(url, timeout=20)
+        r.raise_for_status()
+        return r.json()
