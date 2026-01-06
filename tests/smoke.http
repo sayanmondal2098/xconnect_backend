@@ -1,0 +1,8 @@
+### Health
+GET http://127.0.0.1:8000/api/health
+
+### Register
+POST http://127.0.0.1:8000/api/auth/register
+Content-Type: application/json
+
+{"email":"test@example.com","password":"ChangeMe123!"}
