@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -24,6 +25,7 @@ def _utc_iso() -> str:
 
 class MappingService:
     _DIRECTIONS = {"github_to_servicenow", "servicenow_to_github", "bidirectional"}
+    _FUZZY_THRESHOLD = 0.78
 
     def _normalize_direction(self, direction: str) -> str:
         d = (direction or "").strip().lower()
@@ -97,10 +99,48 @@ class MappingService:
                         chosen = gh_norm_map[cnorm]
                         notes.append(f"Mapped {sn} to GitHub field {chosen} via synonym")
                         break
+            if not chosen:
+                chosen, score = self._fuzzy_match(norm, gh_norm_map)
+                if chosen:
+                    notes.append(f"AI fuzzy matched {sn} to GitHub field {chosen} (score={score:.2f})")
             if chosen:
                 mapping[sn] = chosen
 
         return mapping, notes
+
+    def _fuzzy_match(self, norm_sn: str, gh_norm_map: dict[str, str]) -> tuple[str | None, float]:
+        best = (None, 0.0)
+        for gh_norm, gh_field in gh_norm_map.items():
+            score = SequenceMatcher(a=norm_sn, b=gh_norm).ratio()
+            if score > best[1]:
+                best = (gh_field, score)
+        if best[0] and best[1] >= self._FUZZY_THRESHOLD:
+            return best[0], best[1]
+        return None, 0.0
+
+    def _basic_validate_mapping(self, mapping: dict[str, str], direction: str) -> None:
+        errors: list[str] = []
+        for sn_field, gh_field in mapping.items():
+            if not str(sn_field).strip():
+                errors.append("ServiceNow field names must be non-empty")
+            if not str(gh_field).strip():
+                errors.append(f"GitHub field for '{sn_field}' must be non-empty")
+
+        if direction == "bidirectional":
+            seen: set[str] = set()
+            duplicates: set[str] = set()
+            for gh_field in mapping.values():
+                if gh_field in seen:
+                    duplicates.add(gh_field)
+                seen.add(gh_field)
+            if duplicates:
+                errors.append(
+                    "Bidirectional mappings must be one-to-one. "
+                    f"Duplicate GitHub targets: {', '.join(sorted(duplicates))}"
+                )
+
+        if errors:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(errors))
 
     def create(self, *, user_id: int, req: CreateMappingRequest) -> MappingResponse:
         with SessionLocal() as db:
@@ -109,7 +149,9 @@ class MappingService:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="github_repo_full_name must be like owner/repo")
 
             direction = self._normalize_direction(req.direction)
-            mapping_json = dumps(req.field_mapping or {})
+            field_mapping = req.field_mapping or {}
+            self._basic_validate_mapping(field_mapping, direction)
+            mapping_json = dumps(field_mapping)
 
             row = Mapping(
                 user_id=user_id,
@@ -160,6 +202,7 @@ class MappingService:
 
         direction = self._normalize_direction(req.direction)
         mapping = req.field_mapping or {}
+        self._basic_validate_mapping(mapping, direction)
 
         with SessionLocal() as db:
             gh, gh_row = self._get_github_client(db, user_id=user_id, label=req.label)
