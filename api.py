@@ -48,14 +48,23 @@ async def log_requests(request: Request, call_next):
         method = request.method
         status_code = response.status_code if response else 500
         client_host = request.client.host if request.client else "-"
+        route = request.scope.get("route")
+        route_name = getattr(route, "name", None) or getattr(route, "path", None) or "unknown"
+        user_id = getattr(request.state, "user_id", None)
+        path_params = request.path_params or {}
+        query_params = dict(request.query_params)
         logger.info(
-            "trace_id=%s method=%s path=%s status=%s duration_ms=%.2f client=%s",
+            "trace_id=%s method=%s path=%s status=%s duration_ms=%.2f client=%s route=%s user_id=%s path_params=%s query_params=%s",
             trace_id,
             method,
             path,
             status_code,
             duration_ms,
             client_host,
+            route_name,
+            user_id,
+            path_params,
+            query_params,
         )
         if response:
             response.headers["x-trace-id"] = trace_id
